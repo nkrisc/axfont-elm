@@ -1,0 +1,89 @@
+<html>
+<head>
+  <link rel="stylesheet" type="text/css" href="/assets/axfont.css">
+  <script src="assets/axfont-elm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@latest/dist/opentype.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/clipboard@2/dist/clipboard.min.js"></script>
+</head>
+<body>
+  <div id="content">
+    <main></main>
+  </div>
+  <script>
+    var app = Elm.Main.init({ node: document.querySelector('main') })
+    
+    new ClipboardJS('#copy');
+    
+    app.ports.fontBinary.subscribe(msg => {
+      setTimeout(()=>{
+        var fontFamily = '';
+        var fontWeight = '';
+        var fontMime = '';
+        var fontExtension = '';
+        var base64 = msg.split(',')[1]
+        var bytes = _base64ToArrayBuffer(base64)
+        var byteId = '';
+        for (let i = 0; i <= 3; i++) {
+          byteId += bytes[i].toString(16)
+        }
+        console.log(byteId)
+        var types = byteIdToType(byteId);
+        fontMime = types.mime;
+        fontExtension = types.ext;
+        try {
+          font = opentype.parse(bytes.buffer);
+          fontFamily = font.names.fontFamily.en;
+          fontWeight = font.names.fontSubfamily.en;
+        } catch (e) {
+          console.log(e)
+        } finally {
+            
+         app.ports.parsedFont.send({
+          fontFamily: fontFamily,
+          fontWeight: fontWeight,
+          fontMime: fontMime,
+          fontExtension: fontExtension,
+          base64: base64
+         })
+        }
+      },1500)
+    })
+    
+    function _base64ToArrayBuffer(base64) {
+      var binary_string = window.atob(base64);
+      var len = binary_string.length;
+      var bytes = new Uint8Array(len);
+      for (var i = 0; i < len; i++) {
+        bytes[i] = binary_string.charCodeAt(i);
+      }
+      return bytes
+    }
+
+    function byteIdToType (byteId) {
+      var mime, ext;
+      switch (byteId) {
+        case '774f4646':
+          mime = 'font/woff';
+          ext = 'woff';
+          break;
+        case '0100':
+          mime = 'application/x-font-ttf';
+          ext = 'ttf';
+          break;
+        case '774f4632':
+          mime = 'font/woff2';
+          ext = 'woff2';
+          break;
+        case '4f54544f':
+          mime = 'application/x-font-opentype';
+          ext = 'otf';
+          break;
+        default:
+          mime = '';
+          ext = '';
+      }
+      return {mime: mime, ext: ext}
+    }
+  </script>
+</body>
+</html>
