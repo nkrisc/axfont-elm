@@ -220,22 +220,13 @@ statusClass status =
 
 parsedMessage : Data -> Html Msg
 parsedMessage data =
-    if data.message /= Nothing then
-        div [ class (statusClass data.status) ]
-            [ span []
-                [ text
-                    (case data.message of
-                        Just string ->
-                            string
+    case data.message of
+        Just message ->
+            div [ class (statusClass data.status) ]
+                [ span [] [ text message ] ]
 
-                        Nothing ->
-                            ""
-                    )
-                ]
-            ]
-
-    else
-        text ""
+        Nothing ->
+            text ""
 
 
 view : Model -> Html Msg
