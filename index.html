@@ -30,14 +30,19 @@
         var types = byteIdToType(byteId);
         fontMime = types.mime;
         fontExtension = types.ext;
+
+        var err = null;
         try {
           font = opentype.parse(bytes.buffer);
           fontFamily = font.names.fontFamily.en;
           fontWeight = font.names.fontSubfamily.en;
         } catch (e) {
+          if (e.message.indexOf('wOF2') == -1) {
+            err = e.message;
+          }
           console.log(e)
-        } finally {
-            
+        }
+        if (!err || err.indexOf('wOF2') != -1) {   
          app.ports.parsedFont.send({
           fontFamily: fontFamily,
           fontWeight: fontWeight,
@@ -45,6 +50,8 @@
           fontExtension: fontExtension,
           base64: base64
          })
+        } else {
+          app.ports.parseError.send(err)
         }
       },1500)
     })

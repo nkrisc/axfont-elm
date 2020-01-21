@@ -40,7 +40,8 @@ init _ =
 
 
 type Msg
-    = FontRequested
+    = FatalError String
+    | FontRequested
     | FontSelected File
     | SendFont String
     | FontLoaded (Result D.Error FontData)
@@ -55,6 +56,10 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        FatalError message ->
+            ( ChooseFile (Just message)
+            , Cmd.none
+            )
         FontRequested ->
             ( model
             , Select.file [] FontSelected
@@ -303,6 +308,8 @@ port parsedFont : (D.Value -> msg) -> Sub msg
 port fontBinary : String -> Cmd msg
 
 
+port parseError : (String -> msg) -> Sub msg
+
 
 -- DECODE
 
@@ -323,4 +330,7 @@ fontDecoder =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    parsedFont (FontLoaded << D.decodeValue fontDecoder)
+    Sub.batch 
+        [ parsedFont (FontLoaded << D.decodeValue fontDecoder)
+        , parseError FatalError
+        ]

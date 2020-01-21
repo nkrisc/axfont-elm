@@ -5332,9 +5332,13 @@ var $author$project$Main$init = function (_v0) {
 		$author$project$Main$ChooseFile($elm$core$Maybe$Nothing),
 		$elm$core$Platform$Cmd$none);
 };
+var $author$project$Main$FatalError = function (a) {
+	return {$: 'FatalError', a: a};
+};
 var $author$project$Main$FontLoaded = function (a) {
 	return {$: 'FontLoaded', a: a};
 };
+var $elm$core$Platform$Sub$batch = _Platform_batch;
 var $elm$core$Basics$composeL = F3(
 	function (g, f, x) {
 		return g(
@@ -5356,14 +5360,20 @@ var $author$project$Main$fontDecoder = A6(
 	A2($elm$json$Json$Decode$field, 'fontMime', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'fontExtension', $elm$json$Json$Decode$string),
 	A2($elm$json$Json$Decode$field, 'base64', $elm$json$Json$Decode$string));
+var $author$project$Main$parseError = _Platform_incomingPort('parseError', $elm$json$Json$Decode$string);
 var $elm$json$Json$Decode$value = _Json_decodeValue;
 var $author$project$Main$parsedFont = _Platform_incomingPort('parsedFont', $elm$json$Json$Decode$value);
 var $author$project$Main$subscriptions = function (_v0) {
-	return $author$project$Main$parsedFont(
-		A2(
-			$elm$core$Basics$composeL,
-			$author$project$Main$FontLoaded,
-			$elm$json$Json$Decode$decodeValue($author$project$Main$fontDecoder)));
+	return $elm$core$Platform$Sub$batch(
+		_List_fromArray(
+			[
+				$author$project$Main$parsedFont(
+				A2(
+					$elm$core$Basics$composeL,
+					$author$project$Main$FontLoaded,
+					$elm$json$Json$Decode$decodeValue($author$project$Main$fontDecoder))),
+				$author$project$Main$parseError($author$project$Main$FatalError)
+			]));
 };
 var $author$project$Main$Data = F4(
 	function (original, current, status, message) {
@@ -5398,6 +5408,12 @@ var $elm$file$File$toUrl = _File_toUrl;
 var $author$project$Main$update = F2(
 	function (msg, model) {
 		switch (msg.$) {
+			case 'FatalError':
+				var message = msg.a;
+				return _Utils_Tuple2(
+					$author$project$Main$ChooseFile(
+						$elm$core$Maybe$Just(message)),
+					$elm$core$Platform$Cmd$none);
 			case 'FontRequested':
 				return _Utils_Tuple2(
 					model,
@@ -5664,7 +5680,6 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
-var $elm$core$Basics$neq = _Utils_notEqual;
 var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Main$statusClass = function (status) {
 	if (status.$ === 'Good') {
@@ -5674,32 +5689,29 @@ var $author$project$Main$statusClass = function (status) {
 	}
 };
 var $author$project$Main$parsedMessage = function (data) {
-	return (!_Utils_eq(data.message, $elm$core$Maybe$Nothing)) ? A2(
-		$elm$html$Html$div,
-		_List_fromArray(
-			[
-				$elm$html$Html$Attributes$class(
-				$author$project$Main$statusClass(data.status))
-			]),
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$span,
-				_List_Nil,
-				_List_fromArray(
-					[
-						$elm$html$Html$text(
-						function () {
-							var _v0 = data.message;
-							if (_v0.$ === 'Just') {
-								var string = _v0.a;
-								return string;
-							} else {
-								return '';
-							}
-						}())
-					]))
-			])) : $elm$html$Html$text('');
+	var _v0 = data.message;
+	if (_v0.$ === 'Just') {
+		var message = _v0.a;
+		return A2(
+			$elm$html$Html$div,
+			_List_fromArray(
+				[
+					$elm$html$Html$Attributes$class(
+					$author$project$Main$statusClass(data.status))
+				]),
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$span,
+					_List_Nil,
+					_List_fromArray(
+						[
+							$elm$html$Html$text(message)
+						]))
+				]));
+	} else {
+		return $elm$html$Html$text('');
+	}
 };
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
