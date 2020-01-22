@@ -79,7 +79,7 @@ update msg model =
             ( case data of
                 Ok value ->
                     if value.fontExtension == "woff2" then
-                        Parsed (Data value value Woff2 (Just "Can't parse family and weight for WOFF2 files."))
+                        Parsed (Data value value Warn (Just "Can't parse family and weight for WOFF2 files."))
 
                     else
                         Parsed (Data value value Good (Just "Successfully parsed the font file."))
@@ -180,22 +180,17 @@ type alias Data =
 
 type Status
     = Good
-    | Woff2
+    | Warn
+    | Error
 
 
 
 -- VIEW
 
-
-errorView : Maybe String -> Html Msg
-errorView maybeError =
-    case maybeError of
-        Just err ->
-            p [] [ text err ]
-
-        Nothing ->
-            text ""
-
+viewStatusMessage : String -> Status -> Html Msg
+viewStatusMessage message status =
+    div [ class (statusClass status) ]
+        [ span [] [ text message ] ]
 
 formatFontString : FontData -> String
 formatFontString encoded =
@@ -219,16 +214,18 @@ statusClass status =
         Good ->
             "status good"
 
-        Woff2 ->
-            "status woff2"
+        Warn ->
+            "status warn"
+
+        Error ->
+            "status error"
 
 
 parsedMessage : Data -> Html Msg
 parsedMessage data =
     case data.message of
         Just message ->
-            div [ class (statusClass data.status) ]
-                [ span [] [ text message ] ]
+            viewStatusMessage message data.status
 
         Nothing ->
             text ""
@@ -237,9 +234,16 @@ parsedMessage data =
 view : Model -> Html Msg
 view model =
     case model of
-        ChooseFile err ->
+        ChooseFile message ->
             div []
-                [ h2 [] [ text "Choose a font to embed" ]
+                [ case message of
+                    Just _ ->
+                        viewStatusMessage
+                            """Something went wrong.
+                            Perhaps the file was not a font file or it was corrupted.""" Error
+                    Nothing ->
+                        text ""
+                , h2 [] [ text "Choose a font to embed" ]
                 , p [] [ text "Supports WOFF, WOFF2, TTF, and OTF fonts" ]
                 , p [] [ text "Version 0.1" ]
                 , button
@@ -247,7 +251,6 @@ view model =
                     , class "primary"
                     ]
                     [ text "Load Font" ]
-                , errorView err
                 ]
 
         Parsing ->

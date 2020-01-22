@@ -5390,7 +5390,7 @@ var $author$project$Main$Parsing = {$: 'Parsing'};
 var $author$project$Main$SendFont = function (a) {
 	return {$: 'SendFont', a: a};
 };
-var $author$project$Main$Woff2 = {$: 'Woff2'};
+var $author$project$Main$Warn = {$: 'Warn'};
 var $elm$time$Time$Posix = function (a) {
 	return {$: 'Posix', a: a};
 };
@@ -5442,7 +5442,7 @@ var $author$project$Main$update = F2(
 									$author$project$Main$Data,
 									value,
 									value,
-									$author$project$Main$Woff2,
+									$author$project$Main$Warn,
 									$elm$core$Maybe$Just('Can\'t parse family and weight for WOFF2 files.'))) : $author$project$Main$Parsed(
 								A4(
 									$author$project$Main$Data,
@@ -5583,6 +5583,7 @@ var $author$project$Main$ChangeWeight = function (a) {
 	return {$: 'ChangeWeight', a: a};
 };
 var $author$project$Main$Clear = {$: 'Clear'};
+var $author$project$Main$Error = {$: 'Error'};
 var $author$project$Main$FontRequested = {$: 'FontRequested'};
 var $author$project$Main$Reset = {$: 'Reset'};
 var $elm$virtual_dom$VirtualDom$attribute = F2(
@@ -5603,23 +5604,6 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $elm$html$Html$div = _VirtualDom_node('div');
-var $elm$html$Html$p = _VirtualDom_node('p');
-var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
-var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $author$project$Main$errorView = function (maybeError) {
-	if (maybeError.$ === 'Just') {
-		var err = maybeError.a;
-		return A2(
-			$elm$html$Html$p,
-			_List_Nil,
-			_List_fromArray(
-				[
-					$elm$html$Html$text(err)
-				]));
-	} else {
-		return $elm$html$Html$text('');
-	}
-};
 var $author$project$Main$formatFontString = function (encoded) {
 	return A2(
 		$elm$core$String$join,
@@ -5680,24 +5664,28 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 			$elm$html$Html$Events$alwaysStop,
 			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
 };
+var $elm$html$Html$p = _VirtualDom_node('p');
+var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
+var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
 var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Main$statusClass = function (status) {
-	if (status.$ === 'Good') {
-		return 'status good';
-	} else {
-		return 'status woff2';
+	switch (status.$) {
+		case 'Good':
+			return 'status good';
+		case 'Warn':
+			return 'status warn';
+		default:
+			return 'status error';
 	}
 };
-var $author$project$Main$parsedMessage = function (data) {
-	var _v0 = data.message;
-	if (_v0.$ === 'Just') {
-		var message = _v0.a;
+var $author$project$Main$viewStatusMessage = F2(
+	function (message, status) {
 		return A2(
 			$elm$html$Html$div,
 			_List_fromArray(
 				[
 					$elm$html$Html$Attributes$class(
-					$author$project$Main$statusClass(data.status))
+					$author$project$Main$statusClass(status))
 				]),
 			_List_fromArray(
 				[
@@ -5709,6 +5697,12 @@ var $author$project$Main$parsedMessage = function (data) {
 							$elm$html$Html$text(message)
 						]))
 				]));
+	});
+var $author$project$Main$parsedMessage = function (data) {
+	var _v0 = data.message;
+	if (_v0.$ === 'Just') {
+		var message = _v0.a;
+		return A2($author$project$Main$viewStatusMessage, message, data.status);
 	} else {
 		return $elm$html$Html$text('');
 	}
@@ -5721,12 +5715,19 @@ var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('
 var $author$project$Main$view = function (model) {
 	switch (model.$) {
 		case 'ChooseFile':
-			var err = model.a;
+			var message = model.a;
 			return A2(
 				$elm$html$Html$div,
 				_List_Nil,
 				_List_fromArray(
 					[
+						function () {
+						if (message.$ === 'Just') {
+							return A2($author$project$Main$viewStatusMessage, 'Something went wrong.\n                            Perhaps the file was not a font file or it was corrupted.', $author$project$Main$Error);
+						} else {
+							return $elm$html$Html$text('');
+						}
+					}(),
 						A2(
 						$elm$html$Html$h2,
 						_List_Nil,
@@ -5758,8 +5759,7 @@ var $author$project$Main$view = function (model) {
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Load Font')
-							])),
-						$author$project$Main$errorView(err)
+							]))
 					]));
 		case 'Parsing':
 			return A2(

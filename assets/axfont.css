@@ -22,22 +22,27 @@ html, body {
   .status {
     box-sizing: border-box;
     width: 440px;
-    height: 60px;
+    min-height: 60px;
     vertical-align: center;
     padding: 20px;
     border-radius: 8px;
     border-width: 1px;
     border-style: solid;
   }
-  .good {
+  .status.good {
     background: #d4edda;
     color: #155724;
     border-color: #c3e6cb;
   }
-  .woff2 {
+  .status.warn {
     color: #856404;
     background: #fff3cd;
     border-color: #ffeeba;
+  }
+  .status.error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
   }
   button {
     box-sizing: border-box;
