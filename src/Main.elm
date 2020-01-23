@@ -3,9 +3,10 @@ port module Main exposing (main)
 import Browser
 import File exposing (File, toUrl)
 import File.Select as Select
-import Html exposing (Html, button, div, h2, input, label, li, p, span, text, textarea, ul)
+import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (attribute, class, id, style, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onInput, onSubmit)
+import Http exposing (get, expectBytes)
 import Json.Decode as D
 import Task
 
@@ -41,8 +42,10 @@ init _ =
 
 type Msg
     = FatalError String
-    | FontRequested
+    | FontUpload
     | FontSelected File
+    | FontRequest String
+    | FontResponse (Result Http.Error Data)
     | SendFont String
     | FontLoaded (Result D.Error FontData)
     | ChangeFamily String
@@ -60,7 +63,8 @@ update msg model =
             ( ChooseFile (Just message)
             , Cmd.none
             )
-        FontRequested ->
+
+        FontUpload ->
             ( model
             , Select.file [] FontSelected
             )
@@ -68,6 +72,14 @@ update msg model =
         FontSelected file ->
             ( Parsing
             , Task.perform SendFont (File.toUrl file)
+            )
+
+        FontRequest url ->
+            ( Parsing
+            , Http.get
+                { url = url
+                , expect = Http.expectBytes FontResponse dataDecoder
+                }
             )
 
         SendFont data ->
@@ -90,7 +102,7 @@ update msg model =
             )
 
         ChangeFamily val ->
-            ( case model of
+            ( case model of --replace with just model?
                 Parsed state ->
                     let
                         currentState =
@@ -187,10 +199,12 @@ type Status
 
 -- VIEW
 
+
 viewStatusMessage : String -> Status -> Html Msg
 viewStatusMessage message status =
     div [ class (statusClass status) ]
         [ span [] [ text message ] ]
+
 
 formatFontString : FontData -> String
 formatFontString encoded =
@@ -240,17 +254,26 @@ view model =
                     Just _ ->
                         viewStatusMessage
                             """Something went wrong.
-                            Perhaps the file was not a font file or it was corrupted.""" Error
+                            Perhaps the file was not a font file or it was corrupted."""
+                            Error
+
                     Nothing ->
                         text ""
                 , h2 [] [ text "Choose a font to embed" ]
                 , p [] [ text "Supports WOFF, WOFF2, TTF, and OTF fonts" ]
                 , p [] [ text "Version 0.1" ]
                 , button
-                    [ onClick FontRequested
+                    [ onClick FontUpload
                     , class "primary"
                     ]
-                    [ text "Load Font" ]
+                    [ text "Load font" ]
+                , form [ onSubmit FontRequest ]
+                    [ label []
+                        [ text "Load font from URL"
+                        , input [] []
+                        ]
+                    , button [] [ text "Get font from URL" ]
+                    ]
                 ]
 
         Parsing ->
@@ -314,6 +337,7 @@ port fontBinary : String -> Cmd msg
 port parseError : (String -> msg) -> Sub msg
 
 
+
 -- DECODE
 
 
@@ -333,7 +357,7 @@ fontDecoder =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch 
+    Sub.batch
         [ parsedFont (FontLoaded << D.decodeValue fontDecoder)
         , parseError FatalError
         ]
