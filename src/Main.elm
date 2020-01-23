@@ -192,20 +192,23 @@ viewStatusMessage message status =
     div [ class (statusClass status) ]
         [ span [] [ text message ] ]
 
+--Need to properly handle font-style (italic) and font-weight (bold)
 formatFontString : FontData -> String
 formatFontString encoded =
     String.join ""
-        [ "font-family:"
-        , encoded.fontFamily ++ ";"
-        , "src:url(data:"
-        , encoded.fontMime ++ ";"
-        , "charset=utf-8;base64,"
-        , encoded.base64 ++ ")"
-        , "format('"
-        , encoded.fontExtension ++ "')"
-        , "font-weight:"
-        , encoded.fontWeight ++ ";"
+        [ "font-family:" ++ encoded.fontFamily ++ ";"
+        , "src:url(data:" ++ encoded.fontMime ++ ";"
+        , "charset=utf-8;base64," ++ encoded.base64 ++ ")"
+        , "format('" ++ encoded.fontExtension ++ "')"
+        , formatFontWeight encoded.fontWeight
         ]
+
+formatFontWeight : String -> String
+formatFontWeight input =
+    if input == "" then
+        ""
+    else
+        "font-weight:" ++ input ++ ";"
 
 
 statusClass : Status -> String
