@@ -1,6 +1,9 @@
 port module Main exposing (main)
 
 import Browser
+import Bytes.Encode
+import Base64
+import Bytes.Decode as BD
 import File exposing (File, toUrl)
 import File.Select as Select
 import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
@@ -45,7 +48,7 @@ type Msg
     | FontUpload
     | FontSelected File
     | FontRequest String
-    | FontResponse (Result Http.Error Data)
+    | FontResponse (Result Http.Error String)
     | SendFont String
     | FontLoaded (Result D.Error FontData)
     | ChangeFamily String
@@ -54,6 +57,13 @@ type Msg
     | ChangeExt String
     | Reset
     | Clear
+
+
+stringToBase64 : String -> String
+stringToBase64 data =
+    Bytes.Encode.string data
+        |> Bytes.Encode.encode
+        |> Base64.fromBytes
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -78,8 +88,18 @@ update msg model =
             ( Parsing
             , Http.get
                 { url = url
-                , expect = Http.expectBytes FontResponse dataDecoder
+                , expect = Http.expectString FontResponse
                 }
+            )
+        
+        FontResponse result ->
+            ( case result of
+                Ok value ->
+                    Task.perform SendFont (Task.succeed (stringToBase64 value))
+                
+                Err err ->
+                    ChooseFile (Just err)
+            , Cmd.none
             )
 
         SendFont data ->
@@ -206,20 +226,23 @@ viewStatusMessage message status =
         [ span [] [ text message ] ]
 
 
+--Need to properly handle font-style (italic) and font-weight (bold)
 formatFontString : FontData -> String
 formatFontString encoded =
     String.join ""
-        [ "font-family:"
-        , encoded.fontFamily ++ ";"
-        , "src:url(data:"
-        , encoded.fontMime ++ ";"
-        , "charset=utf-8;base64,"
-        , encoded.base64 ++ ")"
-        , "format('"
-        , encoded.fontExtension ++ "')"
-        , "font-weight:"
-        , encoded.fontWeight ++ ";"
+        [ "font-family:" ++ encoded.fontFamily ++ ";"
+        , "src:url(data:" ++ encoded.fontMime ++ ";"
+        , "charset=utf-8;base64," ++ encoded.base64 ++ ")"
+        , "format('" ++ encoded.fontExtension ++ "')"
+        , formatFontWeight encoded.fontWeight
         ]
+
+formatFontWeight : String -> String
+formatFontWeight input =
+    if input == "" then
+        ""
+    else
+        "font-weight:" ++ input ++ ";"
 
 
 statusClass : Status -> String
