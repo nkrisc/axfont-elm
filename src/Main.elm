@@ -3,13 +3,12 @@ port module Main exposing (main)
 import Browser
 import Bytes.Encode
 import Base64
-import Bytes.Decode as BD
 import File exposing (File, toUrl)
 import File.Select as Select
 import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (attribute, class, id, style, value)
-import Html.Events exposing (onClick, onInput, onSubmit)
-import Http exposing (get, expectBytes)
+import Html.Events exposing (onClick, onInput)
+import Http exposing (get)
 import Json.Decode as D
 import Task
 
@@ -59,9 +58,9 @@ type Msg
     | Clear
 
 
-stringToBase64 : String -> String
-stringToBase64 data =
-    Bytes.Encode.string data
+byteStringToBase64 : String -> Maybe String
+byteStringToBase64 string =
+    Bytes.Encode.string string
         |> Bytes.Encode.encode
         |> Base64.fromBytes
 
@@ -93,14 +92,27 @@ update msg model =
             )
         
         FontResponse result ->
-            ( case result of
+            case result of
                 Ok value ->
-                    Task.perform SendFont (Task.succeed (stringToBase64 value))
+                    let
+                        stringBase64 = byteStringToBase64 value
+                    in
+                        case stringBase64 of
+                            Just string ->
+                                ( Parsing
+                                , Task.perform SendFont
+                                    <| Task.succeed string
+                                )
+
+                            Nothing ->
+                                ( ChooseFile (Just "oops")
+                                , Cmd.none
+                                )
                 
-                Err err ->
-                    ChooseFile (Just err)
-            , Cmd.none
-            )
+                Err _ ->
+                    ( ChooseFile (Just "http error")
+                    , Cmd.none
+                    )
 
         SendFont data ->
             ( Parsing
@@ -267,6 +279,15 @@ parsedMessage data =
         Nothing ->
             text ""
 
+urlForm : Model -> Html Msg
+urlForm model =
+    form []
+        [ label []
+            [ text "Load font from URL"
+            , input [ onInput FontRequest ] []
+            ]
+        , button [ ] [ text "Get font from URL" ]
+        ]
 
 view : Model -> Html Msg
 view model =
@@ -290,13 +311,7 @@ view model =
                     , class "primary"
                     ]
                     [ text "Load font" ]
-                , form [ onSubmit FontRequest ]
-                    [ label []
-                        [ text "Load font from URL"
-                        , input [] []
-                        ]
-                    , button [] [ text "Get font from URL" ]
-                    ]
+                , urlForm model
                 ]
 
         Parsing ->
