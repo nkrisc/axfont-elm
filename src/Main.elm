@@ -6,7 +6,7 @@ import Base64
 import File exposing (File, toUrl)
 import File.Select as Select
 import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
-import Html.Attributes exposing (attribute, class, id, style, value)
+import Html.Attributes exposing (attribute, class, id, style, value, type_)
 import Html.Events exposing (onClick, onInput)
 import Http exposing (get)
 import Json.Decode as D
@@ -32,14 +32,14 @@ main =
 
 
 type Model
-    = ChooseFile (Maybe String)
+    = ChooseFile { message : Maybe String, url : Maybe String }
     | Parsing
     | Parsed Data
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( ChooseFile Nothing, Cmd.none )
+    ( ChooseFile { message = Nothing, url = Nothing}, Cmd.none )
 
 
 type Msg
@@ -47,6 +47,7 @@ type Msg
     | FontUpload
     | FontSelected File
     | FontRequest String
+    | ChangeUrl { message : Maybe String, url : Maybe String }
     | FontResponse (Result Http.Error String)
     | SendFont String
     | FontLoaded (Result D.Error FontData)
@@ -54,6 +55,7 @@ type Msg
     | ChangeWeight String
     | ChangeMime String
     | ChangeExt String
+    | NoOp
     | Reset
     | Clear
 
@@ -69,7 +71,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FatalError message ->
-            ( ChooseFile (Just message)
+            ( ChooseFile { message = Just message, url = Nothing}
             , Cmd.none
             )
 
@@ -80,7 +82,8 @@ update msg model =
 
         FontSelected file ->
             ( Parsing
-            , Task.perform SendFont (File.toUrl file)
+            , Task.perform SendFont
+                <| File.toUrl file
             )
 
         FontRequest url ->
@@ -91,6 +94,11 @@ update msg model =
                 }
             )
         
+        ChangeUrl message ->
+            ( ChooseFile message
+            , Cmd.none
+            )
+
         FontResponse result ->
             case result of
                 Ok value ->
@@ -105,12 +113,12 @@ update msg model =
                                 )
 
                             Nothing ->
-                                ( ChooseFile (Just "oops")
+                                ( ChooseFile { message = Just "oops", url = Nothing }
                                 , Cmd.none
                                 )
                 
                 Err _ ->
-                    ( ChooseFile (Just "http error")
+                    ( ChooseFile { message = Just "http error", url = Nothing }
                     , Cmd.none
                     )
 
@@ -129,7 +137,7 @@ update msg model =
                         Parsed (Data value value Good (Just "Successfully parsed the font file."))
 
                 Err err ->
-                    ChooseFile (Just (D.errorToString err))
+                    ChooseFile {message = Just (D.errorToString err), url = Nothing }
             , Cmd.none
             )
 
@@ -143,7 +151,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontFamily = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -157,7 +165,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontWeight = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -171,7 +179,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontMime = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -185,7 +193,12 @@ update msg model =
                     Parsed (Data state.original { currentState | fontExtension = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
+            , Cmd.none
+            )
+
+        NoOp ->
+            ( model
             , Cmd.none
             )
 
@@ -195,12 +208,12 @@ update msg model =
                     Parsed (Data state.original state.original Good (Just "Settings reset."))
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
         Clear ->
-            ( ChooseFile Nothing
+            ( ChooseFile { message = Nothing, url = Nothing }
             , Cmd.none
             )
 
@@ -279,14 +292,23 @@ parsedMessage data =
         Nothing ->
             text ""
 
-urlForm : Model -> Html Msg
-urlForm model =
-    form []
+submitFont : Maybe String -> Msg
+submitFont msg =
+    case msg of
+        Just string ->
+            FontRequest string
+
+        Nothing ->
+            NoOp
+
+urlForm : { message : Maybe String, url : Maybe String } -> Html Msg
+urlForm message =
+    div [ ]
         [ label []
             [ text "Load font from URL"
-            , input [ onInput FontRequest ] []
+            , input [ onInput (\v -> ChangeUrl { message | url = Just v})] []
             ]
-        , button [ ] [ text "Get font from URL" ]
+        , button [ onClick (submitFont message.url) ] [ text "Get font from URL" ]
         ]
 
 view : Model -> Html Msg
@@ -294,7 +316,7 @@ view model =
     case model of
         ChooseFile message ->
             div []
-                [ case message of
+                [ case message.message of
                     Just _ ->
                         viewStatusMessage
                             """Something went wrong.
@@ -311,7 +333,7 @@ view model =
                     , class "primary"
                     ]
                     [ text "Load font" ]
-                , urlForm model
+                , urlForm message
                 ]
 
         Parsing ->
