@@ -1,11 +1,14 @@
 port module Main exposing (main)
 
 import Browser
+import Bytes.Encode
+import Base64
 import File exposing (File, toUrl)
 import File.Select as Select
 import Html exposing (Html, button, div, h2, input, label, li, p, span, text, textarea, ul)
 import Html.Attributes exposing (attribute, class, id, style, value)
 import Html.Events exposing (onClick, onInput)
+import Http exposing (get)
 import Json.Decode as D
 import Task
 
@@ -29,46 +32,95 @@ main =
 
 
 type Model
-    = ChooseFile (Maybe String)
+    = ChooseFile { message : Maybe String, url : Maybe String }
     | Parsing
     | Parsed Data
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( ChooseFile Nothing, Cmd.none )
+    ( ChooseFile { message = Nothing, url = Nothing}, Cmd.none )
 
 
 type Msg
     = FatalError String
-    | FontRequested
+    | FontUpload
     | FontSelected File
+    | FontRequest String
+    | ChangeUrl { message : Maybe String, url : Maybe String }
+    | FontResponse (Result Http.Error String)
     | SendFont String
     | FontLoaded (Result D.Error FontData)
     | ChangeFamily String
     | ChangeWeight String
     | ChangeMime String
     | ChangeExt String
+    | NoOp
     | Reset
     | Clear
+
+
+byteStringToBase64 : String -> Maybe String
+byteStringToBase64 string =
+    Bytes.Encode.string string
+        |> Bytes.Encode.encode
+        |> Base64.fromBytes
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FatalError message ->
-            ( ChooseFile (Just message)
+            ( ChooseFile { message = Just message, url = Nothing}
             , Cmd.none
             )
-        FontRequested ->
+
+        FontUpload ->
             ( model
             , Select.file [] FontSelected
             )
 
         FontSelected file ->
             ( Parsing
-            , Task.perform SendFont (File.toUrl file)
+            , Task.perform SendFont
+                <| File.toUrl file
             )
+
+        FontRequest url ->
+            ( Parsing
+            , Http.get
+                { url = url
+                , expect = Http.expectString FontResponse
+                }
+            )
+        
+        ChangeUrl message ->
+            ( ChooseFile message
+            , Cmd.none
+            )
+
+        FontResponse result ->
+            case result of
+                Ok value ->
+                    let
+                        stringBase64 = byteStringToBase64 value
+                    in
+                        case stringBase64 of
+                            Just string ->
+                                ( Parsing
+                                , Task.perform SendFont
+                                    <| Task.succeed string
+                                )
+
+                            Nothing ->
+                                ( ChooseFile { message = Just "oops", url = Nothing }
+                                , Cmd.none
+                                )
+                
+                Err _ ->
+                    ( ChooseFile { message = Just "http error", url = Nothing }
+                    , Cmd.none
+                    )
 
         SendFont data ->
             ( Parsing
@@ -85,12 +137,12 @@ update msg model =
                         Parsed (Data value value Good (Just "Successfully parsed the font file."))
 
                 Err err ->
-                    ChooseFile (Just (D.errorToString err))
+                    ChooseFile {message = Just (D.errorToString err), url = Nothing }
             , Cmd.none
             )
 
         ChangeFamily val ->
-            ( case model of
+            ( case model of --replace with just model?
                 Parsed state ->
                     let
                         currentState =
@@ -99,7 +151,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontFamily = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -113,7 +165,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontWeight = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -127,7 +179,7 @@ update msg model =
                     Parsed (Data state.original { currentState | fontMime = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
@@ -141,7 +193,12 @@ update msg model =
                     Parsed (Data state.original { currentState | fontExtension = val } Good Nothing)
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
+            , Cmd.none
+            )
+
+        NoOp ->
+            ( model
             , Cmd.none
             )
 
@@ -151,12 +208,12 @@ update msg model =
                     Parsed (Data state.original state.original Good (Just "Settings reset."))
 
                 _ ->
-                    ChooseFile (Just "Oops")
+                    ChooseFile { message = Just "oops", url = Nothing }
             , Cmd.none
             )
 
         Clear ->
-            ( ChooseFile Nothing
+            ( ChooseFile { message = Nothing, url = Nothing }
             , Cmd.none
             )
 
@@ -186,6 +243,7 @@ type Status
 
 
 -- VIEW
+
 
 viewStatusMessage : String -> Status -> Html Msg
 viewStatusMessage message status =
@@ -233,27 +291,48 @@ parsedMessage data =
         Nothing ->
             text ""
 
+submitFont : Maybe String -> Msg
+submitFont msg =
+    case msg of
+        Just string ->
+            FontRequest string
+
+        Nothing ->
+            NoOp
+
+urlForm : { message : Maybe String, url : Maybe String } -> Html Msg
+urlForm message =
+    div [ ]
+        [ label []
+            [ text "Load font from URL"
+            , input [ onInput (\v -> ChangeUrl { message | url = Just v})] []
+            ]
+        , button [ onClick (submitFont message.url) ] [ text "Get font from URL" ]
+        ]
 
 view : Model -> Html Msg
 view model =
     case model of
         ChooseFile message ->
             div []
-                [ case message of
+                [ case message.message of
                     Just _ ->
                         viewStatusMessage
                             """Something went wrong.
-                            Perhaps the file was not a font file or it was corrupted.""" Error
+                            Perhaps the file was not a font file or it was corrupted."""
+                            Error
+
                     Nothing ->
                         text ""
                 , h2 [] [ text "Choose a font to embed" ]
                 , p [] [ text "Supports WOFF, WOFF2, TTF, and OTF fonts" ]
                 , p [] [ text "Version 0.1" ]
                 , button
-                    [ onClick FontRequested
+                    [ onClick FontUpload
                     , class "primary"
                     ]
-                    [ text "Load Font" ]
+                    [ text "Load font" ]
+                , urlForm message
                 ]
 
         Parsing ->
@@ -317,6 +396,7 @@ port fontBinary : String -> Cmd msg
 port parseError : (String -> msg) -> Sub msg
 
 
+
 -- DECODE
 
 
@@ -336,7 +416,7 @@ fontDecoder =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.batch 
+    Sub.batch
         [ parsedFont (FontLoaded << D.decodeValue fontDecoder)
         , parseError FatalError
         ]

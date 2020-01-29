@@ -16,17 +16,17 @@
     
     app.ports.fontBinary.subscribe(msg => {
       setTimeout(()=>{
+        console.log(msg)
         var fontFamily = '';
         var fontWeight = '';
         var fontMime = '';
         var fontExtension = '';
-        var base64 = msg.split(',')[1]
+        var base64 = msg.indexOf(',') >= 0 ? msg.split(',')[1] : msg
         var bytes = _base64ToArrayBuffer(base64)
         var byteId = '';
         for (let i = 0; i <= 3; i++) {
           byteId += bytes[i].toString(16)
         }
-        console.log(byteId)
         var types = byteIdToType(byteId);
         fontMime = types.mime;
         fontExtension = types.ext;
