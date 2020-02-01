@@ -1,12 +1,12 @@
 port module Main exposing (main)
 
+import Base64
 import Browser
 import Bytes.Encode
-import Base64
 import File exposing (File, toUrl)
 import File.Select as Select
-import Html exposing (Html, button, div, h2, input, label, li, p, span, text, textarea, ul, form)
-import Html.Attributes exposing (attribute, class, id, style, value, type_, name)
+import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
+import Html.Attributes exposing (attribute, class, id, name, style, type_, value)
 import Html.Events exposing (onClick, onInput, preventDefaultOn)
 import Http exposing (get)
 import Json.Decode as D
@@ -39,7 +39,7 @@ type Model
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( ChooseFile { message = Nothing, url = Nothing}, Cmd.none )
+    ( ChooseFile { message = Nothing, url = Nothing }, Cmd.none )
 
 
 type Msg
@@ -69,7 +69,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FatalError message ->
-            ( ChooseFile { message = Just message, url = Nothing}
+            ( ChooseFile { message = Just message, url = Nothing }
             , Cmd.none
             )
 
@@ -80,10 +80,10 @@ update msg model =
 
         FontSelected file ->
             ( Parsing
-            , Task.perform SendFont
-                <| File.toUrl file
+            , Task.perform SendFont <|
+                File.toUrl file
             )
-        
+
         RequestUrl url ->
             ( Parsing
             , Http.get
@@ -96,20 +96,21 @@ update msg model =
             case result of
                 Ok value ->
                     let
-                        stringBase64 = byteStringToBase64 value
+                        stringBase64 =
+                            byteStringToBase64 value
                     in
-                        case stringBase64 of
-                            Just string ->
-                                ( Parsing
-                                , Task.perform SendFont
-                                    <| Task.succeed string
-                                )
+                    case stringBase64 of
+                        Just string ->
+                            ( Parsing
+                            , Task.perform SendFont <|
+                                Task.succeed string
+                            )
 
-                            Nothing ->
-                                ( ChooseFile { message = Just "oops", url = Nothing }
-                                , Cmd.none
-                                )
-                
+                        Nothing ->
+                            ( ChooseFile { message = Just "oops", url = Nothing }
+                            , Cmd.none
+                            )
+
                 Err _ ->
                     ( ChooseFile { message = Just "http error", url = Nothing }
                     , Cmd.none
@@ -130,12 +131,13 @@ update msg model =
                         Parsed (Data value value Good (Just "Successfully parsed the font file."))
 
                 Err err ->
-                    ChooseFile {message = Just (D.errorToString err), url = Nothing }
+                    ChooseFile { message = Just (D.errorToString err), url = Nothing }
             , Cmd.none
             )
 
         ChangeFamily val ->
-            ( case model of --replace with just model?
+            ( case model of
+                --replace with just model?
                 Parsed state ->
                     let
                         currentState =
@@ -238,7 +240,11 @@ viewStatusMessage message status =
     div [ class (statusClass status) ]
         [ span [] [ text message ] ]
 
+
+
 --Need to properly handle font-style (italic) and font-weight (bold)
+
+
 formatFontString : FontData -> String
 formatFontString encoded =
     String.join ""
@@ -249,10 +255,12 @@ formatFontString encoded =
         , formatFontWeight encoded.fontWeight
         ]
 
+
 formatFontWeight : String -> String
 formatFontWeight input =
     if input == "" then
         ""
+
     else
         "font-weight:" ++ input ++ ";"
 
@@ -279,8 +287,9 @@ parsedMessage data =
         Nothing ->
             text ""
 
+
 urlForm : Html Msg
-urlForm  =
+urlForm =
     form [ onFormSubmit RequestUrl ]
         [ label []
             [ text "Load font from URL"
@@ -289,26 +298,28 @@ urlForm  =
         , input [ type_ "submit" ] [ text "Get font from URL" ]
         ]
 
+
 onFormSubmit : (String -> msg) -> Html.Attribute msg
 onFormSubmit tagger =
-    preventDefaultOn "submit"
-        <| D.map alwaysPreventDefault
-        <| D.map tagger formValues
-    
+    preventDefaultOn "submit" <|
+        D.map alwaysPreventDefault <|
+            D.map tagger formValues
+
 
 alwaysPreventDefault : msg -> ( msg, Bool )
 alwaysPreventDefault msg =
-  ( msg, True )
+    ( msg, True )
 
 
 formValues : D.Decoder String
 formValues =
     withField "url" D.string
-        
-        
+
+
 withField : String -> D.Decoder a -> D.Decoder a
 withField fieldName decoder =
-    D.at ["target", fieldName, "value"] decoder
+    D.at [ "target", fieldName, "value" ] decoder
+
 
 view : Model -> Html Msg
 view model =
