@@ -5,9 +5,9 @@ import Bytes.Encode
 import Base64
 import File exposing (File, toUrl)
 import File.Select as Select
-import Html exposing (Html, button, div, h2, input, label, li, p, span, text, textarea, ul)
-import Html.Attributes exposing (attribute, class, id, style, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html, button, div, h2, input, label, li, p, span, text, textarea, ul, form)
+import Html.Attributes exposing (attribute, class, id, style, value, type_, name)
+import Html.Events exposing (onClick, onInput, preventDefaultOn)
 import Http exposing (get)
 import Json.Decode as D
 import Task
@@ -46,8 +46,7 @@ type Msg
     = FatalError String
     | FontUpload
     | FontSelected File
-    | FontRequest String
-    | ChangeUrl { message : Maybe String, url : Maybe String }
+    | RequestUrl String
     | FontResponse (Result Http.Error String)
     | SendFont String
     | FontLoaded (Result D.Error FontData)
@@ -55,7 +54,6 @@ type Msg
     | ChangeWeight String
     | ChangeMime String
     | ChangeExt String
-    | NoOp
     | Reset
     | Clear
 
@@ -85,18 +83,13 @@ update msg model =
             , Task.perform SendFont
                 <| File.toUrl file
             )
-
-        FontRequest url ->
+        
+        RequestUrl url ->
             ( Parsing
             , Http.get
                 { url = url
                 , expect = Http.expectString FontResponse
                 }
-            )
-        
-        ChangeUrl message ->
-            ( ChooseFile message
-            , Cmd.none
             )
 
         FontResponse result ->
@@ -197,11 +190,6 @@ update msg model =
             , Cmd.none
             )
 
-        NoOp ->
-            ( model
-            , Cmd.none
-            )
-
         Reset ->
             ( case model of
                 Parsed state ->
@@ -291,24 +279,36 @@ parsedMessage data =
         Nothing ->
             text ""
 
-submitFont : Maybe String -> Msg
-submitFont msg =
-    case msg of
-        Just string ->
-            FontRequest string
-
-        Nothing ->
-            NoOp
-
-urlForm : { message : Maybe String, url : Maybe String } -> Html Msg
-urlForm message =
-    div [ ]
+urlForm : Html Msg
+urlForm  =
+    form [ onFormSubmit RequestUrl ]
         [ label []
             [ text "Load font from URL"
-            , input [ onInput (\v -> ChangeUrl { message | url = Just v})] []
+            , input [ name "url" ] []
             ]
-        , button [ onClick (submitFont message.url) ] [ text "Get font from URL" ]
+        , input [ type_ "submit" ] [ text "Get font from URL" ]
         ]
+
+onFormSubmit : (String -> msg) -> Html.Attribute msg
+onFormSubmit tagger =
+    preventDefaultOn "submit"
+        <| D.map alwaysPreventDefault
+        <| D.map tagger formValues
+    
+
+alwaysPreventDefault : msg -> ( msg, Bool )
+alwaysPreventDefault msg =
+  ( msg, True )
+
+
+formValues : D.Decoder String
+formValues =
+    withField "url" D.string
+        
+        
+withField : String -> D.Decoder a -> D.Decoder a
+withField fieldName decoder =
+    D.at ["target", fieldName, "value"] decoder
 
 view : Model -> Html Msg
 view model =
@@ -332,7 +332,7 @@ view model =
                     , class "primary"
                     ]
                     [ text "Load font" ]
-                , urlForm message
+                , urlForm
                 ]
 
         Parsing ->
