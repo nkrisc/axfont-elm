@@ -5,7 +5,7 @@ import Browser
 import Bytes.Encode
 import File exposing (File, toUrl)
 import File.Select as Select
-import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul)
+import Html exposing (Html, button, div, form, h2, input, label, li, p, span, text, textarea, ul, section)
 import Html.Attributes exposing (attribute, class, id, name, style, type_, value)
 import Html.Events exposing (onClick, onInput, preventDefaultOn)
 import Http exposing (get)
@@ -290,12 +290,14 @@ parsedMessage data =
 
 urlForm : Html Msg
 urlForm =
-    form [ onFormSubmit RequestUrl ]
-        [ label []
-            [ text "Load font from URL"
-            , input [ name "url" ] []
+    section []
+        [ form [ onFormSubmit RequestUrl ]
+            [ label []
+                [ text "Load font from URL"
+                , input [ name "url" ] []
+                ]
+            , button [ value "Get font", type_ "submit" ] [ text "Get font from URL" ]
             ]
-        , input [ type_ "submit" ] [ text "Get font from URL" ]
         ]
 
 
@@ -326,25 +328,27 @@ view model =
     case model of
         ChooseFile message ->
             div []
-                [ case message.message of
-                    Just _ ->
-                        viewStatusMessage
-                            """Something went wrong.
-                            Perhaps the file was not a font file or it was corrupted."""
-                            Error
+                [ section []
+                    [ case message.message of
+                        Just _ ->
+                            viewStatusMessage
+                                """Something went wrong.
+                                Perhaps the file was not a font file or it was corrupted."""
+                                Error
 
-                    Nothing ->
-                        text ""
-                , h2 [] [ text "Choose a font to embed" ]
-                , p [] [ text "Supports WOFF, WOFF2, TTF, and OTF fonts" ]
-                , p [] [ text "Version 0.1" ]
-                , button
-                    [ onClick FontUpload
-                    , class "primary"
+                        Nothing ->
+                            text ""
+                    , h2 [] [ text "Choose a font to embed" ]
+                    , p [] [ text "Supports WOFF, WOFF2, TTF, and OTF fonts" ]
+                    , p [] [ text "version 0.1" ]
+                    , button
+                        [ onClick FontUpload
+                        , class "primary"
+                        ]
+                        [ text "Load font" ]
                     ]
-                    [ text "Load font" ]
                 , urlForm
-                ]
+            ]
 
         Parsing ->
             div [ id "loader" ]
@@ -357,30 +361,40 @@ view model =
                 [ parsedMessage data
                 , ul []
                     [ li []
-                        [ label [] [ text "Font family" ]
-                        , input [ onInput ChangeFamily, value data.current.fontFamily ] []
+                        [ label []
+                            [ text "Font family"
+                            , input [ onInput ChangeFamily, value data.current.fontFamily ] []
+                            ]
                         ]
                     , li []
-                        [ label [] [ text "Font weight" ]
-                        , input [ onInput ChangeWeight, value data.current.fontWeight ] []
+                        [ label []
+                            [ text "Font weight"
+                            , input [ onInput ChangeWeight, value data.current.fontWeight ] []
+                            ]
                         ]
                     , li []
-                        [ label [] [ text "MIME type" ]
-                        , input [ onInput ChangeMime, value data.current.fontMime ] []
+                        [ label []
+                            [ text "MIME type"
+                            , input [ onInput ChangeMime, value data.current.fontMime ] []
+                            ]
                         ]
                     , li []
-                        [ label [] [ text "Format" ]
-                        , input [ onInput ChangeExt, value data.current.fontExtension ] []
+                        [ label []
+                            [ text "Format"
+                            , input [ onInput ChangeExt, value data.current.fontExtension ] []
+                            ]
                         ]
                     ]
                 , div []
-                    [ label [] [ text "Copy this into Axure" ]
-                    , textarea
-                        [ id "output"
-                        , style "display" "block"
-                        , value (formatFontString data.current)
+                    [ label []
+                        [ text "Copy this into Axure"
+                        , textarea
+                            [ id "output"
+                            , style "display" "block"
+                            , value (formatFontString data.current)
+                            ]
+                            []
                         ]
-                        []
                     ]
                 , button
                     [ id "copy"
