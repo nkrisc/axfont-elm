@@ -7334,21 +7334,12 @@ var $elm$html$Html$Attributes$stringProperty = F2(
 	});
 var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $elm$html$Html$div = _VirtualDom_node('div');
-var $author$project$Main$formatFontWeight = function (input) {
-	return (input === '') ? '' : ('font-weight:' + (input + ';'));
-};
 var $author$project$Main$formatFontString = function (encoded) {
 	return A2(
 		$elm$core$String$join,
 		'',
 		_List_fromArray(
-			[
-				'font-family:' + (encoded.fontFamily + ';'),
-				'src:url(data:' + (encoded.fontMime + ';'),
-				'charset=utf-8;base64,' + (encoded.base64 + ')'),
-				'format(\'' + (encoded.fontExtension + '\')'),
-				$author$project$Main$formatFontWeight(encoded.fontWeight)
-			]));
+			['font-family:' + (encoded.fontFamily + ';\n'), 'src:url(data:' + (encoded.fontMime + ';'), 'charset=utf-8;base64,' + (encoded.base64 + ')'), 'format(\'' + (encoded.fontExtension + '\')')]));
 };
 var $elm$html$Html$h2 = _VirtualDom_node('h2');
 var $elm$html$Html$Attributes$id = $elm$html$Html$Attributes$stringProperty('id');

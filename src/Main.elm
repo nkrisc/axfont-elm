@@ -248,11 +248,11 @@ viewStatusMessage message status =
 formatFontString : FontData -> String
 formatFontString encoded =
     String.join ""
-        [ "font-family:" ++ encoded.fontFamily ++ ";"
+        [ "font-family:" ++ encoded.fontFamily ++ ";\n"
         , "src:url(data:" ++ encoded.fontMime ++ ";"
         , "charset=utf-8;base64," ++ encoded.base64 ++ ")"
         , "format('" ++ encoded.fontExtension ++ "')"
-        , formatFontWeight encoded.fontWeight
+        --, formatFontWeight encoded.fontWeight
         ]
 
 
@@ -391,7 +391,7 @@ view model =
                         , textarea
                             [ id "output"
                             , style "display" "block"
-                            , value (formatFontString data.current)
+                            , value ( formatFontString data.current)
                             ]
                             []
                         ]
